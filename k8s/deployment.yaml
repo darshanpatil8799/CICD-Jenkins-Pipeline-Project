@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: demoapp
-          image: IMAGE_PLACEHOLDER
+          image: darshanpatil0507/demo1:latest
           imagePullPolicy: Always
 
           ports:
