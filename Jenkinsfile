@@ -91,8 +91,7 @@ pipeline {
                         kubectl set image deployment/demoapp \
                         demoapp=${DOCKER_IMAGE}:${BUILD_NUMBER}
 
-                        kubectl rollout status deployment/demoapp \
-                        --timeout=180s
+                       kubectl rollout status deployment/demoapp --timeout=180s
 
                         echo "Deployment Information"
 
