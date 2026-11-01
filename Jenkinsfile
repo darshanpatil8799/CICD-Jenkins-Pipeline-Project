@@ -8,11 +8,10 @@ pipeline {
 
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
+        DOCKER_IMAGE = 'darshanpatil0507/demo1'
 
-        DOCKER_IMAGE = 'darshanpatil0507/demo'
-
-        SONAR_PROJECT_NAME = 'new'
-        SONAR_PROJECT_KEY = 'new1'
+        SONAR_PROJECT_NAME = 'CICD-Jenkins-Pipeline-Project'
+        SONAR_PROJECT_KEY = 'CICD-Jenkins-Pipeline-Project'
     }
 
     stages {
@@ -20,7 +19,7 @@ pipeline {
         stage('Git Checkout') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/ebotsmith2000/jenkins-pipeline.git'
+                    url: 'https://github.com/darshanpatil8799/CICD-Jenkins-Pipeline-Project.git'
             }
         }
 
@@ -55,6 +54,10 @@ pipeline {
                 sh '''
                     docker build \
                     -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .
+                    
+                    docker tag \
+                    ${DOCKER_IMAGE}:${BUILD_NUMBER} \
+                    ${DOCKER_IMAGE}:latest
                 '''
             }
         }
@@ -62,11 +65,12 @@ pipeline {
         stage('Docker Image Push') {
             steps {
                 withDockerRegistry(
-                    credentialsId: 'Dockerhub_cred',
+                    credentialsId: 'dockerhub-credentials',
                     url: 'https://index.docker.io/v1/'
                 ) {
                     sh '''
                         docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                        docker push ${DOCKER_IMAGE}:latest
                     '''
                 }
             }
@@ -74,37 +78,24 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                withCredentials([
-                    file(
-                        credentialsId: 'kubeconfig',
-                        variable: 'KUBECONFIG'
-                    )
+                withKubeConfig([
+                    credentialsId: 'kubeconfig-credentials'
                 ]) {
                     sh '''
                         set -e
 
                         echo "Deploying application to Kubernetes..."
 
-                        echo "Docker Image: ${DOCKER_IMAGE}:${BUILD_NUMBER}"
-
-                        # Replace image placeholder with current build image
-                        sed -i "s|IMAGE_PLACEHOLDER|${DOCKER_IMAGE}:${BUILD_NUMBER}|g" \
-                        k8s/deployment.yaml
-
-                        # Verify generated image
-                        grep "image:" k8s/deployment.yaml
-
-                        # Validate Kubernetes configuration
-                        kubectl apply --dry-run=client -f k8s/deployment.yaml
-
-                        # Deploy application
                         kubectl apply -f k8s/deployment.yaml
 
-                        # Wait for successful deployment
+                        kubectl set image deployment/demoapp \
+                        demoapp=${DOCKER_IMAGE}:${BUILD_NUMBER}
+
                         kubectl rollout status deployment/demoapp \
                         --timeout=180s
 
-                        # Display deployment information
+                        echo "Deployment Information"
+
                         kubectl get deployments
                         kubectl get pods -o wide
                         kubectl get services
